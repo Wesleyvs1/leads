@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: #0b0b0d;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  background:
+    radial-gradient(circle at top left, rgba(196, 122, 58, 0.14), transparent 28rem),
+    linear-gradient(135deg, #0b0b0d 0%, #111114 46%, #0b0b0d 100%);
+  color: #f3f3f3;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid #c47a3a;
+  outline-offset: 2px;
+}
+
+::selection {
+  background: rgba(196, 122, 58, 0.4);
+}
+
+@layer components {
+  .button-primary {
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-copper bg-copper px-4 py-2 text-sm font-medium text-ink transition hover:bg-[#d58a48];
+  }
+
+  .button-secondary {
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-line bg-panel px-4 py-2 text-sm font-medium text-paper transition hover:border-copper/50 hover:bg-copper/10;
+  }
+
+  .button-danger {
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-danger/45 bg-danger/10 px-4 py-2 text-sm font-medium text-danger transition hover:bg-danger/15;
+  }
+
+  .icon-button {
+    @apply inline-grid h-10 w-10 place-items-center rounded-md border border-line bg-ink/50 text-muted transition hover:border-copper/50 hover:text-paper;
+  }
+
+  .input-base {
+    @apply w-full rounded-md border border-line bg-ink/70 px-3 py-2.5 text-sm text-paper outline-none transition placeholder:text-muted/70 focus:border-copper;
+  }
+
+  .control-wrap {
+    @apply flex min-h-11 items-center gap-2 rounded-md border border-line bg-panel px-3 text-muted;
+  }
+
+  .control-field {
+    @apply min-w-0 flex-1 bg-transparent py-2 text-sm text-paper outline-none placeholder:text-muted/70;
+  }
+}
