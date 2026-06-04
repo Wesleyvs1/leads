@@ -7,6 +7,7 @@ import {
   Eye,
   FileUp,
   Filter,
+  Loader2,
   MessageSquareText,
   Pencil,
   Plus,
@@ -26,6 +27,13 @@ import { buildWaMeLink, emptyLeadDraft, isPhoneComplete, mainLink, siteNotFound,
 type Toast = {
   text: string;
   tone?: "success" | "warning";
+};
+
+type NicheSearchMeta = {
+  found: number;
+  target: number;
+  queries: number;
+  warning: string;
 };
 
 const messageVariants: Array<{ label: string; value: MessageVariant }> = [
@@ -52,6 +60,13 @@ export function ProspectorApp() {
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [toast, setToast] = useState<Toast | null>(null);
+  const [niche, setNiche] = useState("");
+  const [region, setRegion] = useState("Curitiba e regiao");
+  const [searchTarget, setSearchTarget] = useState(100);
+  const [researchLeads, setResearchLeads] = useState<LeadDraft[]>([]);
+  const [researchMeta, setResearchMeta] = useState<NicheSearchMeta | null>(null);
+  const [researchError, setResearchError] = useState("");
+  const [researchLoading, setResearchLoading] = useState(false);
 
   useEffect(() => {
     setLeads(loadLeads());
@@ -162,6 +177,93 @@ export function ProspectorApp() {
     setLeads((current) => [toLead(prepared), ...current]);
     setShowCreate(false);
     notify("Lead adicionado");
+  }
+
+  async function handleNicheSearch(event: FormEvent) {
+    event.preventDefault();
+    const trimmedNiche = niche.trim();
+
+    if (trimmedNiche.length < 3) {
+      setResearchError("Informe um nicho com pelo menos 3 caracteres.");
+      return;
+    }
+
+    setResearchLoading(true);
+    setResearchError("");
+    setResearchMeta(null);
+
+    try {
+      const response = await fetch("/api/niche-search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          niche: trimmedNiche,
+          region: region.trim() || "Curitiba e regiao",
+          target: searchTarget,
+        }),
+      });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error || "Nao foi possivel pesquisar esse nicho.");
+      }
+
+      const found = Array.isArray(payload.leads) ? payload.leads : [];
+      setResearchLeads(found);
+      setResearchMeta(payload.meta || null);
+      notify(`${found.length} leads encontrados`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Erro inesperado na pesquisa.";
+      setResearchError(message);
+      notify(message, "warning");
+    } finally {
+      setResearchLoading(false);
+    }
+  }
+
+  function leadIdentity(lead: Pick<LeadDraft, "nome" | "link" | "instagram" | "facebook" | "maps">) {
+    return [lead.nome, lead.link || lead.instagram || lead.facebook || lead.maps]
+      .join("|")
+      .toLowerCase()
+      .trim();
+  }
+
+  function handleAddResearchLeads() {
+    if (!researchLeads.length) {
+      notify("Nenhum resultado para adicionar", "warning");
+      return;
+    }
+
+    let added = 0;
+    setLeads((current) => {
+      const existing = new Set(current.map(leadIdentity));
+      const nextLeads = researchLeads
+        .filter((draft) => {
+          const key = leadIdentity(draft);
+          if (!key || existing.has(key)) {
+            return false;
+          }
+          existing.add(key);
+          return true;
+        })
+        .map((draft) =>
+          toLead({
+            ...draft,
+            prioridade: draft.prioridade || suggestPriority(draft),
+          }),
+        );
+
+      added = nextLeads.length;
+      return [...nextLeads, ...current];
+    });
+
+    if (added > 0) {
+      setQuery(niche);
+      notify(`${added} leads adicionados`);
+      return;
+    }
+
+    notify("Esses leads ja estavam na lista", "warning");
   }
 
   function handleImport(event: ChangeEvent<HTMLInputElement>) {
@@ -319,6 +421,21 @@ export function ProspectorApp() {
             <StatCard label="Descartados" value={stats.descartados} tone="danger" />
           </div>
 
+          <NicheResearchPanel
+            niche={niche}
+            region={region}
+            target={searchTarget}
+            leads={researchLeads}
+            meta={researchMeta}
+            error={researchError}
+            loading={researchLoading}
+            onNicheChange={setNiche}
+            onRegionChange={setRegion}
+            onTargetChange={setSearchTarget}
+            onSearch={handleNicheSearch}
+            onAdd={handleAddResearchLeads}
+          />
+
           <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
             <div className="grid gap-4">
               {filteredLeads.length > 0 ? (
@@ -380,6 +497,124 @@ export function ProspectorApp() {
         </div>
       )}
     </main>
+  );
+}
+
+function NicheResearchPanel({
+  niche,
+  region,
+  target,
+  leads,
+  meta,
+  error,
+  loading,
+  onNicheChange,
+  onRegionChange,
+  onTargetChange,
+  onSearch,
+  onAdd,
+}: {
+  niche: string;
+  region: string;
+  target: number;
+  leads: LeadDraft[];
+  meta: NicheSearchMeta | null;
+  error: string;
+  loading: boolean;
+  onNicheChange: (value: string) => void;
+  onRegionChange: (value: string) => void;
+  onTargetChange: (value: number) => void;
+  onSearch: (event: FormEvent) => void;
+  onAdd: () => void;
+}) {
+  return (
+    <section className="mb-6 rounded-lg border border-line bg-panel p-4 shadow-glow">
+      <form onSubmit={onSearch} className="grid gap-3 xl:grid-cols-[minmax(180px,1fr)_minmax(180px,1fr)_120px_170px]">
+        <label className="block">
+          <span className="mb-1.5 block text-sm text-muted">Nicho</span>
+          <input
+            className="input-base"
+            value={niche}
+            onChange={(event) => onNicheChange(event.target.value)}
+            placeholder="arquitetos"
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1.5 block text-sm text-muted">Regiao</span>
+          <input
+            className="input-base"
+            value={region}
+            onChange={(event) => onRegionChange(event.target.value)}
+            placeholder="Curitiba e regiao"
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1.5 block text-sm text-muted">Meta</span>
+          <input
+            className="input-base"
+            type="number"
+            min={10}
+            max={100}
+            value={target}
+            onChange={(event) => onTargetChange(Number(event.target.value))}
+          />
+        </label>
+        <div className="flex items-end">
+          <button type="submit" className="button-primary w-full" disabled={loading}>
+            {loading ? <Loader2 size={17} className="animate-spin" /> : <Search size={17} />}
+            Pesquisar
+          </button>
+        </div>
+      </form>
+
+      {(meta || error || leads.length > 0) && (
+        <div className="mt-4 border-t border-line pt-4">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-sm font-medium text-paper">
+                {leads.length > 0
+                  ? `${leads.length} resultados encontrados`
+                  : "Pesquisa de nicho"}
+              </p>
+              {meta?.warning && <p className="mt-1 text-sm text-copper">{meta.warning}</p>}
+              {error && <p className="mt-1 text-sm text-danger">{error}</p>}
+              {meta && !meta.warning && (
+                <p className="mt-1 text-sm text-muted">
+                  Meta {meta.target} usando {meta.queries} consultas.
+                </p>
+              )}
+            </div>
+            <button
+              type="button"
+              className="button-secondary"
+              onClick={onAdd}
+              disabled={loading || leads.length === 0}
+            >
+              <Plus size={17} />
+              Adicionar encontrados
+            </button>
+          </div>
+
+          {leads.length > 0 && (
+            <div className="mt-4 grid max-h-[360px] gap-2 overflow-y-auto pr-1 md:grid-cols-2 xl:grid-cols-3">
+              {leads.slice(0, 100).map((lead, index) => (
+                <article key={`${lead.nome}-${lead.link}-${index}`} className="rounded-md border border-line bg-ink/45 p-3">
+                  <p className="line-clamp-2 text-sm font-medium text-paper">
+                    {lead.nome || "Lead sem nome"}
+                  </p>
+                  <p className="mt-1 text-xs text-muted">
+                    {lead.cidade || "Cidade nao detectada"} · {lead.area || "Nicho"}
+                  </p>
+                  <p className="mt-2 line-clamp-2 text-xs text-muted/85">
+                    {lead.observacoes || "Sem descricao publica."}
+                  </p>
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </section>
   );
 }
 

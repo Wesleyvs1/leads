@@ -16,6 +16,18 @@ npm run dev
 
 Abra o endereço mostrado no terminal, normalmente `http://localhost:3000`.
 
+## Pesquisa IA por nicho
+
+O painel tem uma busca de nichos para encontrar leads atuais por nicho e regiao. Exemplo:
+
+```text
+Nicho: arquitetos
+Regiao: Curitiba e regiao
+Meta: 100
+```
+
+Para habilitar essa busca em producao, configure a variavel `FIRECRAWL_API_KEY` na Vercel. Sem essa chave, o painel mostra um aviso e nao inventa leads.
+
 ## Importação CSV
 
 Use o botão de importação no painel e selecione um arquivo `.csv`.
@@ -33,7 +45,8 @@ Campos vazios ou ausentes são permitidos. A prioridade pode ser `Alta`, `Média
 - Os dados ficam apenas no navegador, via `localStorage`.
 - Não há banco externo, backend de sincronização ou autenticação.
 - A importação inicial aceita CSV, não XLSX.
-- As mensagens e prompts são gerados por regras locais, sem OpenAI, Gemini ou APIs pagas.
+- As mensagens e prompts são gerados por regras locais, sem OpenAI ou Gemini.
+- A pesquisa IA de nichos depende de `FIRECRAWL_API_KEY`.
 - O preview visual deve ser gerado fora do sistema, em uma ferramenta de IA escolhida pelo usuário.
 
 ## Uso responsável
