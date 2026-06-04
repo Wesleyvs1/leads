@@ -6,3 +6,5 @@ out
 *.xlsx
 desktop*.png
 mobile*.png
+
+.vercel
