@@ -33,6 +33,8 @@ type NicheSearchMeta = {
   found: number;
   target: number;
   queries: number;
+  withPhone?: number;
+  withWhatsapp?: number;
   warning: string;
 };
 
@@ -580,7 +582,8 @@ function NicheResearchPanel({
               {error && <p className="mt-1 text-sm text-danger">{error}</p>}
               {meta && !meta.warning && (
                 <p className="mt-1 text-sm text-muted">
-                  Meta {meta.target} usando {meta.queries} consultas.
+                  Meta {meta.target} usando {meta.queries} consultas. {meta.withPhone || 0} com telefone e{" "}
+                  {meta.withWhatsapp || 0} com WhatsApp.
                 </p>
               )}
             </div>
@@ -605,6 +608,20 @@ function NicheResearchPanel({
                   <p className="mt-1 text-xs text-muted">
                     {lead.cidade || "Cidade nao detectada"} · {lead.area || "Nicho"}
                   </p>
+                  {(lead.telefone || lead.link.includes("wa.me/") || lead.observacoes.includes("WhatsApp")) && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {lead.telefone && (
+                        <span className="rounded-full border border-good/30 bg-good/10 px-2 py-0.5 text-xs text-good">
+                          {lead.telefone}
+                        </span>
+                      )}
+                      {(lead.link.includes("wa.me/") || lead.observacoes.includes("WhatsApp")) && (
+                        <span className="rounded-full border border-copper/40 bg-copper/10 px-2 py-0.5 text-xs text-copper">
+                          WhatsApp
+                        </span>
+                      )}
+                    </div>
+                  )}
                   <p className="mt-2 line-clamp-2 text-xs text-muted/85">
                     {lead.observacoes || "Sem descricao publica."}
                   </p>

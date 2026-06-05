@@ -8,6 +8,8 @@ type FirecrawlResult = {
   title?: string;
   description?: string;
   url?: string;
+  markdown?: string;
+  links?: string[];
   metadata?: {
     title?: string;
     description?: string;
@@ -24,6 +26,7 @@ type SearchBody = {
 
 const FIRECRAWL_API_URL = process.env.FIRECRAWL_API_URL || "https://api.firecrawl.dev";
 const DEFAULT_REGION = "Curitiba e regiao";
+const CONTACT_ENRICH_LIMIT = 28;
 const NEARBY_CITIES = [
   "Curitiba",
   "Sao Jose dos Pinhais",
@@ -49,15 +52,24 @@ function toNumber(value: unknown, fallback: number) {
 
 function createSearchQueries(niche: string, region: string) {
   const base = cleanText(`${niche} ${region}`);
+  const socialNoiseFilter = "-site:instagram.com/p -site:instagram.com/reel -site:instagram.com/stories";
   const queries = [
-    `${base} contato site instagram`,
-    `${base} escritorio telefone`,
-    `${base} google maps`,
-    `${base} profissionais`,
-    ...NEARBY_CITIES.map((city) => `${niche} ${city} contato`),
+    `${base} telefone whatsapp contato ${socialNoiseFilter}`,
+    `${base} site oficial telefone contato ${socialNoiseFilter}`,
+    `${base} escritorio telefone whatsapp ${socialNoiseFilter}`,
+    `${base} google maps telefone ${socialNoiseFilter}`,
+    `site:wa.me ${base}`,
+    `site:api.whatsapp.com/send ${base}`,
+    `site:linktr.ee ${base} whatsapp`,
+    `site:bio.link ${base} whatsapp`,
+    ...NEARBY_CITIES.flatMap((city) => [
+      `"${niche}" "${city}" "WhatsApp"`,
+      `"${niche}" "${city}" "(41)"`,
+      `${niche} ${city} telefone contato ${socialNoiseFilter}`,
+    ]),
   ];
 
-  return Array.from(new Set(queries.map(cleanText))).slice(0, 12);
+  return Array.from(new Set(queries.map(cleanText))).slice(0, 24);
 }
 
 function resultUrl(result: FirecrawlResult) {
@@ -80,6 +92,106 @@ function normalize(value: string) {
     .trim();
 }
 
+function normalizePhone(phone: string) {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length < 10 || digits.length > 13) {
+    return "";
+  }
+
+  const withoutCountry = digits.startsWith("55") ? digits.slice(2) : digits;
+  if (withoutCountry.length < 10 || withoutCountry.length > 11) {
+    return "";
+  }
+
+  return withoutCountry.replace(/^(\d{2})(\d{4,5})(\d{4})$/, "($1) $2-$3");
+}
+
+function phoneForWhatsapp(phone: string) {
+  const digits = phone.replace(/\D/g, "");
+  if (!digits) {
+    return "";
+  }
+  return digits.startsWith("55") ? digits : `55${digits}`;
+}
+
+function extractPhone(text: string) {
+  const matches =
+    text.match(/(?:\+?55\s*)?(?:\(?\d{2}\)?\s*)?(?:9\s*)?\d{4}[-.\s]?\d{4}/g) || [];
+
+  for (const match of matches) {
+    const normalized = normalizePhone(match);
+    if (normalized) {
+      return normalized;
+    }
+  }
+
+  return "";
+}
+
+function extractWhatsappLink(text: string) {
+  const direct = text.match(/https?:\/\/(?:wa\.me|api\.whatsapp\.com|web\.whatsapp\.com)\/[^\s)"'<]+/i)?.[0];
+  if (direct) {
+    return direct.replace(/[.,;]+$/, "");
+  }
+
+  const phone = text.match(/(?:phone=|wa\.me\/)(55\d{10,11})/i)?.[1];
+  if (phone) {
+    return `https://wa.me/${phone}`;
+  }
+
+  return "";
+}
+
+function isLowValueSocialUrl(url: string) {
+  const lowerUrl = url.toLowerCase();
+  return [
+    "instagram.com/p/",
+    "instagram.com/reel/",
+    "instagram.com/reels/",
+    "instagram.com/stories/",
+    "instagram.com/explore/",
+    "instagram.com/tv/",
+    "facebook.com/reel/",
+    "facebook.com/watch/",
+    "facebook.com/photo",
+    "facebook.com/story",
+    "tiktok.com/",
+    "youtube.com/shorts/",
+  ].some((pattern) => lowerUrl.includes(pattern));
+}
+
+function isSocialProfileUrl(url: string) {
+  const lowerUrl = url.toLowerCase();
+  return lowerUrl.includes("instagram.com/") || lowerUrl.includes("facebook.com/");
+}
+
+function contactScore(draft: LeadDraft) {
+  const text = `${draft.link} ${draft.instagram} ${draft.facebook} ${draft.maps} ${draft.observacoes}`;
+  let score = 0;
+
+  if (draft.telefone) {
+    score += 100;
+  }
+
+  if (extractWhatsappLink(text)) {
+    score += 120;
+  }
+
+  if (draft.maps) {
+    score += 20;
+  }
+
+  if (draft.link && !isSocialProfileUrl(draft.link)) {
+    score += 15;
+  }
+
+  if (draft.instagram || draft.facebook) {
+    score -= 25;
+  }
+
+  return score;
+}
+
 function guessCity(text: string, fallback: string) {
   const normalized = normalize(text);
   const city = NEARBY_CITIES.find((candidate) => normalized.includes(normalize(candidate)));
@@ -100,10 +212,13 @@ function toDraft(result: FirecrawlResult, niche: string, region: string): LeadDr
   const lowerUrl = url.toLowerCase();
   const title = resultTitle(result);
   const description = resultDescription(result);
+  const contactText = `${title} ${description} ${url}`;
+  const phone = extractPhone(contactText);
+  const whatsappLink = extractWhatsappLink(contactText);
   const city = guessCity(`${title} ${description}`, region);
   const draft: LeadDraft = {
     nome: leadNameFromTitle(title),
-    telefone: "",
+    telefone: phone,
     cidade: city,
     area: niche,
     origem: "Pesquisa IA",
@@ -111,7 +226,15 @@ function toDraft(result: FirecrawlResult, niche: string, region: string): LeadDr
     instagram: "",
     facebook: "",
     maps: "",
-    observacoes: cleanText([description, url ? `Fonte: ${url}` : ""].filter(Boolean).join("\n")),
+    observacoes: cleanText(
+      [
+        description,
+        whatsappLink ? `WhatsApp: ${whatsappLink}` : "",
+        url ? `Fonte: ${url}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    ),
     temSite: lowerUrl.includes("instagram.com") || lowerUrl.includes("facebook.com") ? "Nao detectado" : "Sim",
     prioridade: "Média",
     status: "Pendente",
@@ -120,7 +243,9 @@ function toDraft(result: FirecrawlResult, niche: string, region: string): LeadDr
     promptGerado: "",
   };
 
-  if (lowerUrl.includes("instagram.com")) {
+  if (whatsappLink) {
+    draft.link = whatsappLink;
+  } else if (lowerUrl.includes("instagram.com")) {
     draft.instagram = url;
   } else if (lowerUrl.includes("facebook.com") || lowerUrl.includes("fb.com")) {
     draft.facebook = url;
@@ -130,6 +255,31 @@ function toDraft(result: FirecrawlResult, niche: string, region: string): LeadDr
     draft.link = url;
   }
 
+  return draft;
+}
+
+function enrichDraftWithContact(draft: LeadDraft, text: string) {
+  const phone = draft.telefone || extractPhone(text);
+  const whatsappLink = extractWhatsappLink(text);
+  const notes = [draft.observacoes];
+
+  if (phone) {
+    draft.telefone = phone;
+  }
+
+  if (whatsappLink && !draft.observacoes.includes(whatsappLink)) {
+    notes.push(`WhatsApp: ${whatsappLink}`);
+    if (!draft.link || isSocialProfileUrl(draft.link)) {
+      draft.link = whatsappLink;
+    }
+  } else if (phone) {
+    const waMe = `https://wa.me/${phoneForWhatsapp(phone)}`;
+    if (!draft.observacoes.includes(waMe)) {
+      notes.push(`WhatsApp sugerido: ${waMe}`);
+    }
+  }
+
+  draft.observacoes = cleanText(notes.filter(Boolean).join("\n"));
   return draft;
 }
 
@@ -161,6 +311,63 @@ async function searchFirecrawl(query: string, limit: number, apiKey: string) {
   return web as FirecrawlResult[];
 }
 
+async function scrapeFirecrawl(url: string, apiKey: string) {
+  const response = await fetch(`${FIRECRAWL_API_URL}/v2/scrape`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      url,
+      formats: ["markdown", "links"],
+      onlyMainContent: false,
+      timeout: 20000,
+      location: {
+        country: "BR",
+        languages: ["pt-BR"],
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    return "";
+  }
+
+  const data = await response.json();
+  const page = data?.data || {};
+  const markdown = typeof page.markdown === "string" ? page.markdown : "";
+  const links = Array.isArray(page.links) ? page.links.join("\n") : "";
+  return `${markdown}\n${links}`;
+}
+
+async function enrichContactDetails(drafts: LeadDraft[], apiKey: string) {
+  const candidates = drafts
+    .filter((draft) => !draft.telefone)
+    .filter((draft) => draft.link && !draft.link.includes("wa.me/"))
+    .filter((draft) => !isSocialProfileUrl(draft.link))
+    .slice(0, CONTACT_ENRICH_LIMIT);
+
+  const enriched = await Promise.allSettled(
+    candidates.map(async (draft) => {
+      const pageText = await scrapeFirecrawl(draft.link, apiKey);
+      if (!pageText) {
+        return draft;
+      }
+      return enrichDraftWithContact(draft, pageText);
+    }),
+  );
+
+  enriched.forEach((result) => {
+    if (result.status === "fulfilled") {
+      return result.value;
+    }
+    return null;
+  });
+
+  return drafts;
+}
+
 export async function POST(request: Request) {
   const apiKey = process.env.FIRECRAWL_API_KEY;
 
@@ -187,7 +394,7 @@ export async function POST(request: Request) {
   }
 
   const queries = createSearchQueries(niche, region);
-  const perQueryLimit = Math.max(10, Math.ceil(target / Math.min(queries.length, 5)));
+  const perQueryLimit = Math.max(8, Math.ceil((target * 1.8) / Math.min(queries.length, 8)));
   const seen = new Set<string>();
   const drafts: LeadDraft[] = [];
 
@@ -205,32 +412,44 @@ export async function POST(request: Request) {
       const title = resultTitle(result);
       const key = normalize(url || title);
 
-      if (!key || seen.has(key)) {
+      if (!key || seen.has(key) || isLowValueSocialUrl(url)) {
         continue;
       }
 
       seen.add(key);
-      drafts.push(toDraft(result, niche, region));
+      drafts.push(enrichDraftWithContact(toDraft(result, niche, region), `${title} ${resultDescription(result)} ${url}`));
 
-      if (drafts.length >= target) {
+      if (drafts.length >= target * 2) {
         break;
       }
     }
 
-    if (drafts.length >= target) {
+    if (drafts.length >= target * 2) {
       break;
     }
   }
 
+  await enrichContactDetails(drafts, apiKey);
+
+  const sortedDrafts = drafts
+    .sort((a, b) => contactScore(b) - contactScore(a))
+    .slice(0, target);
+  const withPhone = sortedDrafts.filter((draft) => draft.telefone).length;
+  const withWhatsapp = sortedDrafts.filter((draft) =>
+    extractWhatsappLink(`${draft.link} ${draft.observacoes}`),
+  ).length;
+
   return NextResponse.json({
-    leads: drafts,
+    leads: sortedDrafts,
     meta: {
-      found: drafts.length,
+      found: sortedDrafts.length,
       target,
       queries: queries.length,
+      withPhone,
+      withWhatsapp,
       warning:
-        drafts.length < target
-          ? `Foram encontrados ${drafts.length} resultados unicos. Tente um nicho mais amplo ou outra regiao para chegar em ${target}.`
+        sortedDrafts.length < target
+          ? `Foram encontrados ${sortedDrafts.length} resultados unicos. Tente um nicho mais amplo ou outra regiao para chegar em ${target}.`
           : "",
     },
   });
