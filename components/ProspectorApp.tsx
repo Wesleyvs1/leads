@@ -5,6 +5,7 @@ import {
   Clipboard,
   Download,
   Eye,
+  FileImage,
   FileUp,
   Filter,
   Loader2,
@@ -62,6 +63,7 @@ export function ProspectorApp() {
   const [priorityFilter, setPriorityFilter] = useState<LeadPriority | "Todas">("Todas");
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [showImagePdf, setShowImagePdf] = useState(false);
   const [toast, setToast] = useState<Toast | null>(null);
   const [niche, setNiche] = useState("");
   const [region, setRegion] = useState("Curitiba e regiao");
@@ -354,6 +356,11 @@ export function ProspectorApp() {
               Exportar CSV
             </button>
 
+            <button className="button-secondary w-full" onClick={() => setShowImagePdf(true)}>
+              <FileImage size={17} />
+              Imagens para PDF
+            </button>
+
             <button className="button-danger w-full" onClick={handleClearAll}>
               <Trash2 size={17} />
               Limpar dados
@@ -488,6 +495,13 @@ export function ProspectorApp() {
         <LeadCreateModal
           onClose={() => setShowCreate(false)}
           onCreate={handleCreateLead}
+        />
+      )}
+
+      {showImagePdf && (
+        <ImagePdfModal
+          onClose={() => setShowImagePdf(false)}
+          onNotify={notify}
         />
       )}
 
@@ -1052,6 +1066,195 @@ function LeadCreateModal({
       </form>
     </div>
   );
+}
+
+type PdfImageItem = {
+  id: string;
+  name: string;
+  type: "PNG" | "JPEG";
+  dataUrl: string;
+  width: number;
+  height: number;
+};
+
+function ImagePdfModal({
+  onClose,
+  onNotify,
+}: {
+  onClose: () => void;
+  onNotify: (text: string, tone?: Toast["tone"]) => void;
+}) {
+  const [items, setItems] = useState<PdfImageItem[]>([]);
+  const [busy, setBusy] = useState(false);
+
+  async function handleFiles(event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files || []).filter((file) =>
+      ["image/png", "image/jpeg"].includes(file.type),
+    );
+
+    if (!files.length) {
+      onNotify("Selecione PNG ou JPG", "warning");
+      return;
+    }
+
+    try {
+      const nextItems = await Promise.all(files.map(readImageFile));
+      setItems((current) => [...current, ...nextItems]);
+      onNotify(`${nextItems.length} imagem(ns) adicionada(s)`);
+    } catch {
+      onNotify("Nao foi possivel ler uma das imagens", "warning");
+    } finally {
+      event.target.value = "";
+    }
+  }
+
+  function removeItem(id: string) {
+    setItems((current) => current.filter((item) => item.id !== id));
+  }
+
+  async function downloadPdf() {
+    if (!items.length) {
+      onNotify("Adicione ao menos uma imagem", "warning");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const { jsPDF } = await import("jspdf");
+      const firstOrientation = items[0].width >= items[0].height ? "landscape" : "portrait";
+      const pdf = new jsPDF({
+        unit: "mm",
+        format: "a4",
+        orientation: firstOrientation,
+      });
+
+      items.forEach((item, index) => {
+        const orientation = item.width >= item.height ? "landscape" : "portrait";
+        if (index > 0) {
+          pdf.addPage("a4", orientation);
+        }
+
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const margin = 8;
+        const availableWidth = pageWidth - margin * 2;
+        const availableHeight = pageHeight - margin * 2;
+        const scale = Math.min(availableWidth / item.width, availableHeight / item.height);
+        const imageWidth = item.width * scale;
+        const imageHeight = item.height * scale;
+        const x = (pageWidth - imageWidth) / 2;
+        const y = (pageHeight - imageHeight) / 2;
+
+        pdf.addImage(item.dataUrl, item.type, x, y, imageWidth, imageHeight);
+      });
+
+      pdf.save("imagens-convertidas.pdf");
+      onNotify("PDF gerado");
+    } catch {
+      onNotify("Nao foi possivel gerar o PDF", "warning");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-40 overflow-y-auto overflow-x-hidden bg-black/70 p-3 backdrop-blur-sm sm:p-4">
+      <div className="mx-auto my-6 w-full max-w-3xl rounded-lg border border-line bg-panel p-4 shadow-glow sm:p-5">
+        <div className="mb-5 flex items-start justify-between gap-4">
+          <div>
+            <h3 className="text-xl font-semibold text-paper">Converter imagens para PDF</h3>
+            <p className="mt-1 text-sm text-muted">PNG e JPG, uma imagem por pagina.</p>
+          </div>
+          <button type="button" className="icon-button" onClick={onClose} title="Fechar">
+            <X size={18} />
+          </button>
+        </div>
+
+        <label className="button-secondary flex w-full cursor-pointer items-center justify-center gap-2">
+          <FileImage size={17} />
+          Selecionar imagens
+          <input
+            className="sr-only"
+            type="file"
+            accept="image/png,image/jpeg"
+            multiple
+            onChange={handleFiles}
+          />
+        </label>
+
+        <div className="mt-4 grid max-h-[360px] gap-3 overflow-y-auto pr-1">
+          {items.length > 0 ? (
+            items.map((item, index) => (
+              <div
+                key={item.id}
+                className="grid min-w-0 grid-cols-[56px_minmax(0,1fr)_40px] items-center gap-3 rounded-md border border-line bg-ink/45 p-2"
+              >
+                <span
+                  className="h-14 w-14 rounded-md bg-cover bg-center"
+                  style={{ backgroundImage: `url(${item.dataUrl})` }}
+                  aria-hidden="true"
+                />
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-paper">
+                    {index + 1}. {item.name}
+                  </p>
+                  <p className="text-xs text-muted">
+                    {item.width} x {item.height}px · {item.type}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="icon-button"
+                  onClick={() => removeItem(item.id)}
+                  title="Remover"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            ))
+          ) : (
+            <div className="rounded-lg border border-dashed border-line p-8 text-center text-sm text-muted">
+              Nenhuma imagem selecionada.
+            </div>
+          )}
+        </div>
+
+        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <button type="button" className="button-secondary" onClick={onClose}>
+            Cancelar
+          </button>
+          <button type="button" className="button-primary" onClick={downloadPdf} disabled={busy}>
+            {busy ? <Loader2 size={17} className="animate-spin" /> : <Download size={17} />}
+            Baixar PDF
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function readImageFile(file: File): Promise<PdfImageItem> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("read-failed"));
+    reader.onload = () => {
+      const dataUrl = String(reader.result || "");
+      const image = new Image();
+      image.onerror = () => reject(new Error("image-failed"));
+      image.onload = () => {
+        resolve({
+          id: `${file.name}-${file.lastModified}-${Math.random().toString(16).slice(2)}`,
+          name: file.name,
+          type: file.type === "image/png" ? "PNG" : "JPEG",
+          dataUrl,
+          width: image.naturalWidth,
+          height: image.naturalHeight,
+        });
+      };
+      image.src = dataUrl;
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 function TemplatePanel({
