@@ -121,20 +121,29 @@ function toNumber(value: unknown, fallback: number) {
 
 function createSearchQueries(niche: string, region: string) {
   const base = cleanText(`${niche} ${region}`);
-  const socialNoiseFilter = "-site:instagram.com/p -site:instagram.com/reel -site:instagram.com/stories";
+  const socialNoiseFilter =
+    "-site:instagram.com/p -site:instagram.com/reel -site:instagram.com/stories -site:instagram.com/explore";
   const queries = [
-    `${base} telefone whatsapp contato ${socialNoiseFilter}`,
-    `${base} site oficial telefone contato ${socialNoiseFilter}`,
-    `${base} escritorio telefone whatsapp ${socialNoiseFilter}`,
-    `${base} google maps telefone ${socialNoiseFilter}`,
+    `${base} instagram whatsapp telefone ${socialNoiseFilter}`,
+    `${base} facebook whatsapp telefone`,
+    `${base} google maps telefone whatsapp ${socialNoiseFilter}`,
+    `${base} guia telefone whatsapp ${socialNoiseFilter}`,
+    `${base} diretório telefone whatsapp ${socialNoiseFilter}`,
     `site:wa.me ${base}`,
     `site:api.whatsapp.com/send ${base}`,
     `site:linktr.ee ${base} whatsapp`,
     `site:bio.link ${base} whatsapp`,
+    `site:instagram.com ${base} whatsapp ${socialNoiseFilter}`,
+    `site:facebook.com ${base} telefone whatsapp`,
+    `site:solutudo.com.br ${base} telefone`,
+    `site:guiamais.com.br ${base} telefone`,
+    `site:apontador.com.br ${base} telefone`,
     ...NEARBY_CITIES.flatMap((city) => [
-      `"${niche}" "${city}" "WhatsApp"`,
-      `"${niche}" "${city}" "(41)"`,
-      `${niche} ${city} telefone contato ${socialNoiseFilter}`,
+      `site:instagram.com "${niche}" "${city}" "WhatsApp" ${socialNoiseFilter}`,
+      `site:facebook.com "${niche}" "${city}" "WhatsApp"`,
+      `"${niche}" "${city}" "sem site" "WhatsApp"`,
+      `"${niche}" "${city}" "Instagram" "WhatsApp"`,
+      `${niche} ${city} google maps telefone whatsapp ${socialNoiseFilter}`,
     ]),
   ];
 
@@ -217,6 +226,14 @@ function extractWhatsappLink(text: string) {
   return "";
 }
 
+function hostName(url: string) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "").toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
 function isLowValueSocialUrl(url: string) {
   const lowerUrl = url.toLowerCase();
   return [
@@ -237,7 +254,84 @@ function isLowValueSocialUrl(url: string) {
 
 function isSocialProfileUrl(url: string) {
   const lowerUrl = url.toLowerCase();
-  return lowerUrl.includes("instagram.com/") || lowerUrl.includes("facebook.com/");
+  return (
+    (lowerUrl.includes("instagram.com/") || lowerUrl.includes("facebook.com/")) &&
+    !isLowValueSocialUrl(lowerUrl)
+  );
+}
+
+function isMapsUrl(url: string) {
+  const lowerUrl = url.toLowerCase();
+  return (
+    lowerUrl.includes("google.com/maps") ||
+    lowerUrl.includes("maps.app.goo.gl") ||
+    lowerUrl.includes("goo.gl/maps")
+  );
+}
+
+function isWhatsappUrl(url: string) {
+  const lowerUrl = url.toLowerCase();
+  return (
+    lowerUrl.includes("wa.me/") ||
+    lowerUrl.includes("api.whatsapp.com/send") ||
+    lowerUrl.includes("web.whatsapp.com/send")
+  );
+}
+
+function isLinkHubUrl(url: string) {
+  const host = hostName(url);
+  return [
+    "linktr.ee",
+    "bio.link",
+    "beacons.ai",
+    "taplink.cc",
+    "solo.to",
+    "lnk.bio",
+    "instabio.cc",
+    "about.me",
+  ].some((domain) => host === domain || host.endsWith(`.${domain}`));
+}
+
+function isDirectoryUrl(url: string) {
+  const host = hostName(url);
+  return [
+    "google.com",
+    "maps.google.com",
+    "solutudo.com.br",
+    "guiamais.com.br",
+    "apontador.com.br",
+    "telelistas.net",
+    "empresasdobrasil.com",
+    "consultas.plus",
+    "casamentos.com.br",
+    "habitissimo.com.br",
+    "homify.com.br",
+    "archdaily.com.br",
+    "br.houzz.com",
+  ].some((domain) => host === domain || host.endsWith(`.${domain}`));
+}
+
+function isNoSiteLeadSource(url: string) {
+  return (
+    isSocialProfileUrl(url) ||
+    isMapsUrl(url) ||
+    isWhatsappUrl(url) ||
+    isLinkHubUrl(url) ||
+    isDirectoryUrl(url)
+  );
+}
+
+function mentionsNoSite(text: string) {
+  const normalized = normalize(text);
+  return [
+    "sem site",
+    "site nao encontrado",
+    "site não encontrado",
+    "nao possui site",
+    "não possui site",
+    "apenas instagram",
+    "somente instagram",
+  ].some((signal) => normalized.includes(normalize(signal)));
 }
 
 function contactScore(draft: LeadDraft) {
@@ -256,12 +350,20 @@ function contactScore(draft: LeadDraft) {
     score += 20;
   }
 
-  if (draft.link && !isSocialProfileUrl(draft.link)) {
-    score += 15;
+  if (draft.link && isWhatsappUrl(draft.link)) {
+    score += 35;
   }
 
-  if (draft.instagram || draft.facebook) {
-    score -= 25;
+  if (draft.maps || draft.instagram || draft.facebook) {
+    score += 20;
+  }
+
+  if (draft.temSite === "Sim") {
+    score -= 250;
+  }
+
+  if (mentionsNoSite(draft.observacoes)) {
+    score += 45;
   }
 
   return score;
@@ -283,11 +385,7 @@ function leadNameFromTitle(title: string) {
 }
 
 function hostNameFromUrl(url: string) {
-  try {
-    return new URL(url).hostname.replace(/^www\./, "").split(".")[0].replaceAll("-", " ");
-  } catch {
-    return "";
-  }
+  return hostName(url).split(".")[0]?.replaceAll("-", " ") || "";
 }
 
 function leadName(result: FirecrawlResult) {
@@ -327,7 +425,7 @@ function toDraft(result: FirecrawlResult, niche: string, region: string): LeadDr
         .filter(Boolean)
         .join("\n"),
     ),
-    temSite: lowerUrl.includes("instagram.com") || lowerUrl.includes("facebook.com") ? "Nao detectado" : "Sim",
+    temSite: isNoSiteLeadSource(url) || mentionsNoSite(contactText) ? "Nao detectado" : "Sim",
     prioridade: "Média",
     status: "Pendente",
     analiseManual: "",
@@ -341,7 +439,7 @@ function toDraft(result: FirecrawlResult, niche: string, region: string): LeadDr
     draft.instagram = url;
   } else if (lowerUrl.includes("facebook.com") || lowerUrl.includes("fb.com")) {
     draft.facebook = url;
-  } else if (lowerUrl.includes("google.") || lowerUrl.includes("maps.app.goo.gl")) {
+  } else if (isMapsUrl(url)) {
     draft.maps = url;
   } else {
     draft.link = url;
@@ -438,6 +536,7 @@ async function enrichContactDetails(drafts: LeadDraft[], apiKey: string) {
     .filter((draft) => !draft.telefone)
     .filter((draft) => draft.link && !draft.link.includes("wa.me/"))
     .filter((draft) => !isSocialProfileUrl(draft.link))
+    .filter((draft) => draft.temSite !== "Sim")
     .slice(0, CONTACT_ENRICH_LIMIT);
 
   const enriched = await Promise.allSettled(
@@ -508,8 +607,13 @@ export async function POST(request: Request) {
         continue;
       }
 
+      const sourceText = `${title} ${resultDescription(result)} ${url}`;
+      if (!isNoSiteLeadSource(url) && !mentionsNoSite(sourceText)) {
+        continue;
+      }
+
       seen.add(key);
-      drafts.push(enrichDraftWithContact(toDraft(result, niche, region), `${title} ${resultDescription(result)} ${url}`));
+      drafts.push(enrichDraftWithContact(toDraft(result, niche, region), sourceText));
 
       if (drafts.length >= target * 2) {
         break;
@@ -523,13 +627,15 @@ export async function POST(request: Request) {
 
   await enrichContactDetails(drafts, apiKey);
 
-  const sortedDrafts = drafts
+  const noSiteDrafts = drafts.filter((draft) => draft.temSite !== "Sim");
+  const sortedDrafts = noSiteDrafts
     .sort((a, b) => contactScore(b) - contactScore(a))
     .slice(0, target);
   const withPhone = sortedDrafts.filter((draft) => draft.telefone).length;
   const withWhatsapp = sortedDrafts.filter((draft) =>
     extractWhatsappLink(`${draft.link} ${draft.observacoes}`),
   ).length;
+  const withoutSite = sortedDrafts.filter((draft) => draft.temSite !== "Sim").length;
 
   return NextResponse.json({
     leads: sortedDrafts,
@@ -539,9 +645,10 @@ export async function POST(request: Request) {
       queries: queries.length,
       withPhone,
       withWhatsapp,
+      withoutSite,
       warning:
         sortedDrafts.length < target
-          ? `Foram encontrados ${sortedDrafts.length} resultados unicos. Tente um nicho mais amplo ou outra regiao para chegar em ${target}.`
+          ? `Foram encontrados ${sortedDrafts.length} leads sem site detectado. Melhor retornar menos leads bons do que incluir empresas que ja tem site.`
           : "",
     },
   });

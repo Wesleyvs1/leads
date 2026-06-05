@@ -35,6 +35,7 @@ type NicheSearchMeta = {
   queries: number;
   withPhone?: number;
   withWhatsapp?: number;
+  withoutSite?: number;
   warning: string;
 };
 
@@ -585,8 +586,8 @@ function NicheResearchPanel({
               {error && <p className="mt-1 text-sm text-danger">{error}</p>}
               {meta && !meta.warning && (
                 <p className="mt-1 text-sm text-muted">
-                  Meta {meta.target} usando {meta.queries} consultas. {meta.withPhone || 0} com telefone e{" "}
-                  {meta.withWhatsapp || 0} com WhatsApp.
+                  Meta {meta.target} usando {meta.queries} consultas. {meta.withoutSite || 0} sem site detectado,{" "}
+                  {meta.withPhone || 0} com telefone e {meta.withWhatsapp || 0} com WhatsApp.
                 </p>
               )}
             </div>
