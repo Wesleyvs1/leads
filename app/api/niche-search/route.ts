@@ -198,6 +198,11 @@ function phoneForWhatsapp(phone: string) {
   return digits.startsWith("55") ? digits : `55${digits}`;
 }
 
+function phoneDigits(phone: string) {
+  const digits = phone.replace(/\D/g, "");
+  return digits.startsWith("55") ? digits.slice(2) : digits;
+}
+
 function extractPhone(text: string) {
   const matches =
     text.match(/(?:\+?55\s*)?(?:\(?\d{2}\)?\s*)?(?:9\s*)?\d{4}[-.\s]?\d{4}/g) || [];
@@ -397,6 +402,36 @@ function contactScore(draft: LeadDraft) {
   }
 
   return score;
+}
+
+function canonicalUrl(value: string) {
+  return value.toLowerCase().replace(/\/$/, "").trim();
+}
+
+function dedupeKey(draft: LeadDraft) {
+  const phone = phoneDigits(draft.telefone);
+  if (phone.length >= 10) {
+    return `phone:${phone}`;
+  }
+
+  const profile = draft.instagram || draft.facebook || draft.maps || draft.link;
+  if (profile) {
+    return `url:${canonicalUrl(profile)}`;
+  }
+
+  return `name:${normalize(`${draft.nome} ${draft.cidade}`)}`;
+}
+
+function dedupeDrafts(drafts: LeadDraft[]) {
+  const seen = new Set<string>();
+  return drafts.filter((draft) => {
+    const key = dedupeKey(draft);
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
 }
 
 function guessCity(text: string, fallback: string) {
@@ -657,7 +692,7 @@ export async function POST(request: Request) {
 
   await enrichContactDetails(drafts, apiKey);
 
-  const noSiteDrafts = drafts.filter((draft) => draft.temSite !== "Sim");
+  const noSiteDrafts = dedupeDrafts(drafts.filter((draft) => draft.temSite !== "Sim"));
   const sortedDrafts = noSiteDrafts
     .sort((a, b) => contactScore(b) - contactScore(a))
     .slice(0, target);
