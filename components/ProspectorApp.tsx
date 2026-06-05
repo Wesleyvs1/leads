@@ -318,9 +318,9 @@ export function ProspectorApp() {
   }
 
   return (
-    <main className="min-h-screen">
-      <div className="mx-auto grid min-h-screen w-full max-w-[1600px] grid-cols-1 lg:grid-cols-[280px_1fr]">
-        <aside className="border-b border-line bg-ink/85 p-5 backdrop-blur lg:border-b-0 lg:border-r">
+    <main className="min-h-screen overflow-x-hidden">
+      <div className="mx-auto grid min-h-screen w-full max-w-[1600px] grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)]">
+        <aside className="min-w-0 border-b border-line bg-ink/85 p-4 backdrop-blur sm:p-5 lg:border-b-0 lg:border-r">
           <div className="mb-8">
             <div className="flex items-center gap-3">
               <span className="grid h-10 w-10 place-items-center rounded-lg border border-copper/50 bg-copper/15 text-copper">
@@ -367,7 +367,7 @@ export function ProspectorApp() {
           </div>
         </aside>
 
-        <section className="p-4 sm:p-6 lg:p-8">
+        <section className="min-w-0 p-4 sm:p-6 lg:p-8">
           <div className="mb-6 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
             <div>
               <p className="text-sm uppercase tracking-[0.22em] text-copper">Curitiba e Região</p>
@@ -376,7 +376,7 @@ export function ProspectorApp() {
               </h2>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-[minmax(220px,1fr)_180px_160px]">
+            <div className="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,180px)_minmax(0,160px)]">
               <label className="control-wrap">
                 <Search size={17} />
                 <input
@@ -438,8 +438,8 @@ export function ProspectorApp() {
             onAdd={handleAddResearchLeads}
           />
 
-          <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
-            <div className="grid gap-4">
+          <div className="grid min-w-0 gap-6 2xl:grid-cols-[minmax(0,1fr)_minmax(300px,360px)]">
+            <div className="grid min-w-0 gap-4">
               {filteredLeads.length > 0 ? (
                 filteredLeads.map((lead) => (
                   <LeadCard
@@ -530,9 +530,12 @@ function NicheResearchPanel({
   onAdd: () => void;
 }) {
   return (
-    <section className="mb-6 rounded-lg border border-line bg-panel p-4 shadow-glow">
-      <form onSubmit={onSearch} className="grid gap-3 xl:grid-cols-[minmax(180px,1fr)_minmax(180px,1fr)_120px_170px]">
-        <label className="block">
+    <section className="mb-6 min-w-0 rounded-lg border border-line bg-panel p-4 shadow-glow">
+      <form
+        onSubmit={onSearch}
+        className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,120px)_minmax(0,170px)]"
+      >
+        <label className="block min-w-0">
           <span className="mb-1.5 block text-sm text-muted">Nicho</span>
           <input
             className="input-base"
@@ -541,7 +544,7 @@ function NicheResearchPanel({
             placeholder="arquitetos"
           />
         </label>
-        <label className="block">
+        <label className="block min-w-0">
           <span className="mb-1.5 block text-sm text-muted">Regiao</span>
           <input
             className="input-base"
@@ -550,7 +553,7 @@ function NicheResearchPanel({
             placeholder="Curitiba e regiao"
           />
         </label>
-        <label className="block">
+        <label className="block min-w-0">
           <span className="mb-1.5 block text-sm text-muted">Meta</span>
           <input
             className="input-base"
@@ -571,8 +574,8 @@ function NicheResearchPanel({
 
       {(meta || error || leads.length > 0) && (
         <div className="mt-4 border-t border-line pt-4">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div>
+          <div className="flex min-w-0 flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="min-w-0">
               <p className="text-sm font-medium text-paper">
                 {leads.length > 0
                   ? `${leads.length} resultados encontrados`
@@ -589,7 +592,7 @@ function NicheResearchPanel({
             </div>
             <button
               type="button"
-              className="button-secondary"
+              className="button-secondary w-full md:w-auto"
               onClick={onAdd}
               disabled={loading || leads.length === 0}
             >
@@ -599,10 +602,10 @@ function NicheResearchPanel({
           </div>
 
           {leads.length > 0 && (
-            <div className="mt-4 grid max-h-[360px] gap-2 overflow-y-auto pr-1 md:grid-cols-2 xl:grid-cols-3">
+            <div className="mt-4 grid max-h-[360px] min-w-0 gap-2 overflow-y-auto pr-1 md:grid-cols-2 xl:grid-cols-3">
               {leads.slice(0, 100).map((lead, index) => (
-                <article key={`${lead.nome}-${lead.link}-${index}`} className="rounded-md border border-line bg-ink/45 p-3">
-                  <p className="line-clamp-2 text-sm font-medium text-paper">
+                <article key={`${lead.nome}-${lead.link}-${index}`} className="min-w-0 rounded-md border border-line bg-ink/45 p-3">
+                  <p className="line-clamp-2 break-words text-sm font-medium text-paper">
                     {lead.nome || "Lead sem nome"}
                   </p>
                   <p className="mt-1 text-xs text-muted">
@@ -622,7 +625,7 @@ function NicheResearchPanel({
                       )}
                     </div>
                   )}
-                  <p className="mt-2 line-clamp-2 text-xs text-muted/85">
+                  <p className="mt-2 line-clamp-2 break-words text-xs text-muted/85">
                     {lead.observacoes || "Sem descricao publica."}
                   </p>
                 </article>
@@ -681,8 +684,8 @@ function LeadCard({
   const link = mainLink(lead);
 
   return (
-    <article className="rounded-lg border border-line bg-panel p-4 shadow-glow">
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+    <article className="min-w-0 rounded-lg border border-line bg-panel p-4 shadow-glow">
+      <div className="flex min-w-0 flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="break-words text-lg font-semibold text-paper">
@@ -709,14 +712,14 @@ function LeadCard({
               href={link}
               target="_blank"
               rel="noreferrer"
-              className="mt-3 inline-flex max-w-full text-sm text-copper underline-offset-4 hover:underline"
+              className="mt-3 inline-flex max-w-full break-all text-sm text-copper underline-offset-4 hover:underline"
             >
               <span className="truncate">{link}</span>
             </a>
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:w-[420px]">
+        <div className="grid w-full min-w-0 grid-cols-1 gap-2 sm:grid-cols-3 xl:max-w-[360px] xl:flex-[0_0_360px]">
           <ActionButton title="Abrir detalhes" onClick={onOpen} icon={<Eye size={16} />}>
             Detalhes
           </ActionButton>
@@ -813,8 +816,8 @@ function LeadDetailModal({
   }
 
   return (
-    <div className="fixed inset-0 z-40 overflow-y-auto bg-black/70 p-4 backdrop-blur-sm">
-      <div className="mx-auto my-6 max-w-6xl rounded-lg border border-line bg-panel shadow-glow">
+    <div className="fixed inset-0 z-40 overflow-y-auto overflow-x-hidden bg-black/70 p-3 backdrop-blur-sm sm:p-4">
+      <div className="mx-auto my-4 w-full max-w-6xl rounded-lg border border-line bg-panel shadow-glow sm:my-6">
         <div className="flex items-start justify-between gap-4 border-b border-line p-5">
           <div>
             <h3 className="text-xl font-semibold text-paper">{draft.nome || "Lead sem nome"}</h3>
@@ -827,9 +830,9 @@ function LeadDetailModal({
           </button>
         </div>
 
-        <div className="grid gap-5 p-5 lg:grid-cols-[1fr_420px]">
-          <div className="space-y-5">
-            <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid min-w-0 gap-5 p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_minmax(280px,420px)]">
+          <div className="min-w-0 space-y-5">
+            <div className="grid min-w-0 gap-3 md:grid-cols-2">
               <TextField label="Nome" value={draft.nome} onChange={(value) => setField("nome", value)} />
               <TextField label="Telefone" value={draft.telefone} onChange={(value) => setField("telefone", value)} />
               <TextField label="Cidade" value={draft.cidade} onChange={(value) => setField("cidade", value)} />
@@ -844,7 +847,7 @@ function LeadDetailModal({
 
             <LinkList lead={draft} />
 
-            <div className="grid gap-3 md:grid-cols-2">
+            <div className="grid min-w-0 gap-3 md:grid-cols-2">
               <SelectField
                 label="Status"
                 value={draft.status}
@@ -885,7 +888,7 @@ function LeadDetailModal({
             />
           </div>
 
-          <div className="space-y-4">
+          <div className="min-w-0 space-y-4">
             <div className="rounded-lg border border-line bg-ink/40 p-4">
               <p className="mb-3 text-sm font-medium text-paper">Gerar mensagem</p>
               <select
@@ -993,10 +996,10 @@ function LeadCreateModal({
   }
 
   return (
-    <div className="fixed inset-0 z-40 overflow-y-auto bg-black/70 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-40 overflow-y-auto overflow-x-hidden bg-black/70 p-3 backdrop-blur-sm sm:p-4">
       <form
         onSubmit={submit}
-        className="mx-auto my-8 max-w-3xl rounded-lg border border-line bg-panel p-5 shadow-glow"
+        className="mx-auto my-6 w-full max-w-3xl rounded-lg border border-line bg-panel p-4 shadow-glow sm:my-8 sm:p-5"
       >
         <div className="mb-5 flex items-center justify-between">
           <h3 className="text-xl font-semibold text-paper">Adicionar lead</h3>
@@ -1005,7 +1008,7 @@ function LeadCreateModal({
           </button>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid min-w-0 gap-3 md:grid-cols-2">
           <TextField label="Nome" value={draft.nome} onChange={(value) => setField("nome", value)} />
           <TextField label="Telefone" value={draft.telefone} onChange={(value) => setField("telefone", value)} />
           <TextField label="Cidade" value={draft.cidade} onChange={(value) => setField("cidade", value)} />
@@ -1055,7 +1058,7 @@ function TemplatePanel({
   onChange: (templates: MessageTemplates) => void;
 }) {
   return (
-    <aside className="h-fit rounded-lg border border-line bg-panel p-4">
+    <aside className="h-fit min-w-0 rounded-lg border border-line bg-panel p-4">
       <div className="mb-4 flex items-center gap-2">
         <Pencil size={17} className="text-copper" />
         <h3 className="font-semibold text-paper">Templates editáveis</h3>
@@ -1097,14 +1100,14 @@ function LinkList({ lead }: { lead: Lead }) {
   }
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex min-w-0 flex-wrap gap-2">
       {links.map(([label, url]) => (
         <a
           key={label}
           href={url}
           target="_blank"
           rel="noreferrer"
-          className="rounded-md border border-copper/40 bg-copper/10 px-3 py-2 text-sm text-copper hover:bg-copper/15"
+          className="max-w-full break-all rounded-md border border-copper/40 bg-copper/10 px-3 py-2 text-sm text-copper hover:bg-copper/15"
         >
           {label}
         </a>
@@ -1123,7 +1126,7 @@ function TextField({
   onChange: (value: string) => void;
 }) {
   return (
-    <label className="block">
+    <label className="block min-w-0">
       <span className="mb-1.5 block text-sm text-muted">{label}</span>
       <input className="input-base" value={value} onChange={(event) => onChange(event.target.value)} />
     </label>
@@ -1142,7 +1145,7 @@ function TextAreaField({
   onChange: (value: string) => void;
 }) {
   return (
-    <label className="block">
+    <label className="block min-w-0">
       <span className="mb-1.5 block text-sm text-muted">{label}</span>
       <textarea
         className="input-base min-h-[90px] resize-y leading-relaxed"
@@ -1166,7 +1169,7 @@ function SelectField<T extends string>({
   onChange: (value: T) => void;
 }) {
   return (
-    <label className="block">
+    <label className="block min-w-0">
       <span className="mb-1.5 block text-sm text-muted">{label}</span>
       <select className="input-base" value={value} onChange={(event) => onChange(event.target.value as T)}>
         {options.map((option) => (
@@ -1221,7 +1224,7 @@ function ActionButton({
 }) {
   return (
     <button
-      className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm transition ${
+      className={`inline-flex min-h-10 min-w-0 items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm transition ${
         danger
           ? "border-danger/35 bg-danger/10 text-danger hover:bg-danger/15"
           : "border-line bg-ink/60 text-paper hover:border-copper/50 hover:bg-copper/10"
@@ -1230,7 +1233,7 @@ function ActionButton({
       onClick={onClick}
     >
       {icon}
-      <span className="truncate">{children}</span>
+      <span className="min-w-0 truncate">{children}</span>
     </button>
   );
 }

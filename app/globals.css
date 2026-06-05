@@ -12,11 +12,15 @@
 
 html {
   background: #0b0b0d;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 body {
   min-height: 100vh;
   margin: 0;
+  max-width: 100%;
+  overflow-x: hidden;
   background:
     radial-gradient(circle at top left, rgba(196, 122, 58, 0.14), transparent 28rem),
     linear-gradient(135deg, #0b0b0d 0%, #111114 46%, #0b0b0d 100%);
@@ -31,6 +35,7 @@ input,
 textarea,
 select {
   font: inherit;
+  max-width: 100%;
 }
 
 button:focus-visible,
@@ -48,15 +53,15 @@ select:focus-visible {
 
 @layer components {
   .button-primary {
-    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-copper bg-copper px-4 py-2 text-sm font-medium text-ink transition hover:bg-[#d58a48];
+    @apply inline-flex min-h-10 max-w-full items-center justify-center gap-2 rounded-md border border-copper bg-copper px-4 py-2 text-sm font-medium text-ink transition hover:bg-[#d58a48];
   }
 
   .button-secondary {
-    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-line bg-panel px-4 py-2 text-sm font-medium text-paper transition hover:border-copper/50 hover:bg-copper/10;
+    @apply inline-flex min-h-10 max-w-full items-center justify-center gap-2 rounded-md border border-line bg-panel px-4 py-2 text-sm font-medium text-paper transition hover:border-copper/50 hover:bg-copper/10;
   }
 
   .button-danger {
-    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-danger/45 bg-danger/10 px-4 py-2 text-sm font-medium text-danger transition hover:bg-danger/15;
+    @apply inline-flex min-h-10 max-w-full items-center justify-center gap-2 rounded-md border border-danger/45 bg-danger/10 px-4 py-2 text-sm font-medium text-danger transition hover:bg-danger/15;
   }
 
   .icon-button {
@@ -64,7 +69,7 @@ select:focus-visible {
   }
 
   .input-base {
-    @apply w-full rounded-md border border-line bg-ink/70 px-3 py-2.5 text-sm text-paper outline-none transition placeholder:text-muted/70 focus:border-copper;
+    @apply min-w-0 w-full rounded-md border border-line bg-ink/70 px-3 py-2.5 text-sm text-paper outline-none transition placeholder:text-muted/70 focus:border-copper;
   }
 
   .control-wrap {
