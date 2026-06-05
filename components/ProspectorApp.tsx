@@ -167,9 +167,12 @@ export function ProspectorApp() {
     notify("Prompt gerado");
   }
 
-  function handleDiscard(id: string) {
-    updateLead(id, (lead) => ({ ...lead, status: "Descartado" }));
-    notify("Lead descartado");
+  function handleDeleteLead(id: string) {
+    setLeads((current) => current.filter((lead) => lead.id !== id));
+    if (selectedLeadId === id) {
+      setSelectedLeadId(null);
+    }
+    notify("Lead excluido");
   }
 
   function handleCreateLead(draft: LeadDraft) {
@@ -452,7 +455,7 @@ export function ProspectorApp() {
                     onCopyMessage={() =>
                       copyText(lead.mensagemGerada || generateMessage(lead), "Copiado")
                     }
-                    onDiscard={() => handleDiscard(lead.id)}
+                    onDelete={() => handleDeleteLead(lead.id)}
                   />
                 ))
               ) : (
@@ -673,14 +676,14 @@ function LeadCard({
   onGenerateMessage,
   onGeneratePrompt,
   onCopyMessage,
-  onDiscard,
+  onDelete,
 }: {
   lead: Lead;
   onOpen: () => void;
   onGenerateMessage: () => void;
   onGeneratePrompt: () => void;
   onCopyMessage: () => void;
-  onDiscard: () => void;
+  onDelete: () => void;
 }) {
   const link = mainLink(lead);
 
@@ -733,8 +736,8 @@ function LeadCard({
           <ActionButton title="Copiar WhatsApp" onClick={onCopyMessage} icon={<Clipboard size={16} />}>
             Copiar
           </ActionButton>
-          <ActionButton title="Descartar" onClick={onDiscard} icon={<Trash2 size={16} />} danger>
-            Descartar
+          <ActionButton title="Excluir da tela" onClick={onDelete} icon={<Trash2 size={16} />} danger>
+            Excluir
           </ActionButton>
         </div>
       </div>
