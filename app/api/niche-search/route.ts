@@ -207,6 +207,23 @@ function leadNameFromTitle(title: string) {
   );
 }
 
+function hostNameFromUrl(url: string) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "").split(".")[0].replaceAll("-", " ");
+  } catch {
+    return "";
+  }
+}
+
+function leadName(result: FirecrawlResult) {
+  const title = leadNameFromTitle(resultTitle(result));
+  const generic = ["contato", "fale conosco", "whatsapp", "home", "inicio", "início"];
+  if (generic.includes(normalize(title))) {
+    return cleanText(hostNameFromUrl(resultUrl(result)) || title || "Lead sem nome");
+  }
+  return title || cleanText(hostNameFromUrl(resultUrl(result)) || "Lead sem nome");
+}
+
 function toDraft(result: FirecrawlResult, niche: string, region: string): LeadDraft {
   const url = resultUrl(result);
   const lowerUrl = url.toLowerCase();
@@ -217,7 +234,7 @@ function toDraft(result: FirecrawlResult, niche: string, region: string): LeadDr
   const whatsappLink = extractWhatsappLink(contactText);
   const city = guessCity(`${title} ${description}`, region);
   const draft: LeadDraft = {
-    nome: leadNameFromTitle(title),
+    nome: leadName(result),
     telefone: phone,
     cidade: city,
     area: niche,
