@@ -240,6 +240,7 @@ function isLowValueSocialUrl(url: string) {
     "instagram.com/p/",
     "instagram.com/reel/",
     "instagram.com/reels/",
+    "/reels/",
     "instagram.com/stories/",
     "instagram.com/explore/",
     "instagram.com/tv/",
@@ -247,6 +248,8 @@ function isLowValueSocialUrl(url: string) {
     "facebook.com/watch/",
     "facebook.com/photo",
     "facebook.com/story",
+    "facebook.com/groups/",
+    "/posts/",
     "tiktok.com/",
     "youtube.com/shorts/",
   ].some((pattern) => lowerUrl.includes(pattern));
@@ -331,6 +334,33 @@ function mentionsNoSite(text: string) {
     "não possui site",
     "apenas instagram",
     "somente instagram",
+  ].some((signal) => normalized.includes(normalize(signal)));
+}
+
+function isProviderNoise(text: string) {
+  const normalized = normalize(text);
+  return [
+    "criacao de sites",
+    "criação de sites",
+    "desenvolvimento de sites",
+    "site para arquiteto",
+    "site para arquitetos",
+    "marketing digital",
+    "agencia de marketing",
+    "agência de marketing",
+    "landing page",
+    "seo para",
+    "trafego pago",
+    "tráfego pago",
+    "informatica",
+    "informática",
+    "sistema para",
+    "software para",
+    "vagas",
+    "vaga:",
+    "emprego",
+    "montador de moveis",
+    "montador de móveis",
   ].some((signal) => normalized.includes(normalize(signal)));
 }
 
@@ -608,7 +638,7 @@ export async function POST(request: Request) {
       }
 
       const sourceText = `${title} ${resultDescription(result)} ${url}`;
-      if (!isNoSiteLeadSource(url) && !mentionsNoSite(sourceText)) {
+      if (!isNoSiteLeadSource(url) || isProviderNoise(sourceText)) {
         continue;
       }
 
